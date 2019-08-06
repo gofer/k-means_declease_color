@@ -1,6 +1,11 @@
 #include <iostream>
 #include <cstdint>
+#include <unistd.h>
 #include <ppm.h>
+
+const uint64_t NumberOfCluster = 8;
+const std::string DefaultInputFileName  = "input.ppm";
+const std::string DefaultOutputFileName = "output.ppm";
 
 struct KMeansItem
 {
@@ -85,22 +90,20 @@ KMeansItem k_means_step(const KMeansItem &item, const PPM &ppm_image, uint64_t N
   return new_item;
 }
 
-int main(int argc, char **argv)
+int convert(uint64_t num_of_cluster, const std::string &input_file, const std::string &output_file)
 {
-  const uint64_t NumberOfCluster = 2;
-  
   PPM ppm_image;
   
-  int ifs_ret = ppm_image.read_file("./input.ppm");
+  int ifs_ret = ppm_image.read_file(input_file.c_str());
   if (ifs_ret) {
-    std::cerr << "Cannot open file ./input.ppm" << std::endl;
+    std::cerr << "Cannot open file " << input_file << std::endl;
     return 1;
   }
 
-  KMeansItem item = k_means_init(ppm_image, NumberOfCluster);
+  KMeansItem item = k_means_init(ppm_image, num_of_cluster);
   
   while (true) {
-    KMeansItem new_item = k_means_step(item, ppm_image, NumberOfCluster);
+    KMeansItem new_item = k_means_step(item, ppm_image, num_of_cluster);
     
     if (new_item == item) { break; }
     
@@ -115,11 +118,40 @@ int main(int argc, char **argv)
     }
   }
   
-  int ofs_ret = ppm_image.write_file("./output.ppm");
+  int ofs_ret = ppm_image.write_file(output_file.c_str());
   if (ofs_ret) {
-    std::cerr << "Cannot open file ./output.ppm" << std::endl;
+    std::cerr << "Cannot open file " << output_file << std::endl;
     return 1;
   }
+  return 0;
+}
+
+void usage(const char *prg_name)
+{
+  std::cerr << "[Usage] " << prg_name << " [ -n <number of clusters> ] [ -i <input file> ] [ -o <output file> ]"  << std::endl;
+  std::cerr << "  -h                      : show usage" << std::endl;
+  std::cerr << "  -n <number of clusters> : set number of cluster ; default = " << NumberOfCluster << std::endl;
+  std::cerr << "  -i <input file>         : set input file name   ; default = " << DefaultInputFileName << std::endl;
+  std::cerr << "  -o <output file>        : set output file name  ; default = " << DefaultOutputFileName << std::endl;
+}
+
+int main(int argc, char **argv)
+{
+  uint64_t num_of_cluster = NumberOfCluster;
+  std::string input_file = DefaultInputFileName, output_file = DefaultOutputFileName;
+
+  int opt;
+  while ((opt = getopt(argc, argv, "hi:n:o:")) != -1) {
+    switch(static_cast<char>(opt)) {
+    case 'h': usage(argv[0]); exit(0);
+    case 'n': num_of_cluster = atoi(optarg); break;
+    case 'i': input_file = std::string(optarg); break;
+    case 'o': output_file = std::string(optarg); break;
+    default: break;
+    }
+  }
+
+  convert(num_of_cluster, input_file, output_file);
 
   return 0;
 }
